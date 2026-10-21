@@ -5,16 +5,19 @@ interface SidebarProps {
   currentTab: NavigationTab;
   onNavigate: (tab: NavigationTab) => void;
   pendingApprovalsCount?: number;
+  /** Home/landing tab of the active organizational role (dashboard vs construction dashboard) */
+  homeTab?: NavigationTab;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onNavigate,
-  pendingApprovalsCount = 3
+  pendingApprovalsCount = 3,
+  homeTab = 'dashboard'
 }) => {
   const navItems: { tab: NavigationTab; label: string; icon: string; badge?: number }[] = [
     {
-      tab: 'dashboard',
+      tab: homeTab,
       label: 'خانه',
       icon: 'space_dashboard'
     },

@@ -1,10 +1,12 @@
 export type NavigationTab = 
   | 'dashboard' 
+  | 'constructionDashboard'
   | 'cde' 
   | 'bim' 
   | 'approvals' 
   | 'permissions' 
   | 'portfolio' 
+  | 'roleSelect'
   | 'login';
 
 export interface Project {

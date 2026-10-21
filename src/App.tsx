@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import { NavigationTab, Project, CdeDocument, ClashPreset } from './types';
@@ -21,10 +21,27 @@ import { ApprovalsView } from './views/ApprovalsView';
 import { PermissionsView } from './views/PermissionsView';
 import { PortfolioView } from './views/PortfolioView';
 import { LoginView } from './views/LoginView';
+import { RoleSelectionView } from './views/RoleSelectionView';
+import { ConstructionDashboardView } from './views/ConstructionDashboardView';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('login');
+  // Dissolve page transition: fade out current page, then swap tab and fade in
+  const [isPageDissolving, setIsPageDissolving] = useState(false);
+  const pageDissolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const navigate = (tab: NavigationTab) => {
+    if (tab === currentTab) return;
+    if (pageDissolveTimer.current) clearTimeout(pageDissolveTimer.current);
+    setIsPageDissolving(true);
+    pageDissolveTimer.current = setTimeout(() => {
+      setCurrentTab(tab);
+      setIsPageDissolving(false);
+    }, 200);
+  };
   const [currentProject, setCurrentProject] = useState<Project>(PROJECTS[0]);
+  // Active organizational persona selected on the role-selection screen
+  const [userRole, setUserRole] = useState<'cde' | 'construction' | null>(null);
   const [documents, setDocuments] = useState<CdeDocument[]>(CDE_DOCUMENTS);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -35,12 +52,20 @@ export default function App() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedDossierDocId, setSelectedDossierDocId] = useState<string | null>(null);
   const [isExcelIpcOpen, setIsExcelIpcOpen] = useState(false);
+  // Target folder pre-selected when opening the CDE repository from dashboard cards
+  const [cdeTargetFolder, setCdeTargetFolder] = useState<string | undefined>(undefined);
   const [clashPreset, setClashPreset] = useState<ClashPreset | null>(null);
 
   // Navigate to BIM page with preset clash filters (e.g. from dashboard histogram)
   const handleOpenClashFilters = (preset: ClashPreset) => {
     setClashPreset(preset);
-    setCurrentTab('bim');
+    navigate('bim');
+  };
+
+  // Deep-link into a specific CDE folder from dashboard supporting cards
+  const handleNavigateToCdeFolder = (folderId?: string) => {
+    setCdeTargetFolder(folderId);
+    navigate('cde');
   };
 
   // Quick prototype guide toggle
@@ -59,6 +84,13 @@ export default function App() {
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // Clean up pending page dissolve timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pageDissolveTimer.current) clearTimeout(pageDissolveTimer.current);
+    };
+  }, []);
 
   // Smooth scrolling (Lenis)
   const lenisRef = React.useRef<Lenis | null>(null);
@@ -125,23 +157,42 @@ export default function App() {
     CDE_DOCUMENTS.find((d) => d.id === selectedDossierDocId) ||
     (selectedDossierDocId ? documents[0] : null);
 
-  // If in login view, render login view directly without sidebar/header
-  if (currentTab === 'login') {
+  // Standalone views (login / role selection) rendered without sidebar/header
+  if (currentTab === 'login' || currentTab === 'roleSelect') {
     return (
-      <div className="min-h-screen bg-[#070e17] text-slate-100 font-sans selection:bg-[#00f2fe]/30 selection:text-white animate-dissolve">
-        <LoginView
-          onLoginSuccess={() => {
-            // First proceed to portfolio (project selection), from which user selects project and goes to dashboard (home)
-            setCurrentTab('portfolio');
-            addToast(
-              'ورود موفق به سیستم',
-              'به سامانه یکپارچه باران خوش آمدید. لطفاً پروژه مورد نظر خود را انتخاب نمایید.',
-              'success'
-            );
-          }}
-          onNavigate={(tab) => setCurrentTab(tab)}
-          onTriggerToast={addToast}
-        />
+      <div className={`min-h-screen text-slate-100 font-sans ${isPageDissolving ? 'animate-dissolve-out' : 'animate-dissolve'}`}>
+        {currentTab === 'login' ? (
+          <div className="min-h-screen bg-[#070e17] selection:bg-[#00f2fe]/30 selection:text-white">
+            <LoginView
+              onLoginSuccess={() => {
+                // After login, user selects their organizational role, then proceeds to portfolio (project selection)
+                navigate('roleSelect');
+                addToast(
+                  'ورود موفق به سیستم',
+                  'به سامانه یکپارچه باران خوش آمدید. لطفاً نقش سازمانی خود را انتخاب نمایید.',
+                  'success'
+                );
+              }}
+              onNavigate={(tab) => navigate(tab)}
+              onTriggerToast={addToast}
+            />
+          </div>
+        ) : (
+          <RoleSelectionView
+            onRoleSelect={(role) => {
+              setUserRole(role);
+              navigate('portfolio');
+              addToast(
+                'نقش سازمانی انتخاب شد',
+                role === 'cde'
+                  ? 'به میزکار مدیر ارشد طراحی و CDE خوش آمدید. لطفاً پروژه مورد نظر را انتخاب نمایید.'
+                  : 'به میزکار مدیریت ساخت و کارگاه خوش آمدید. لطفاً پروژه مورد نظر را انتخاب نمایید.',
+                'success'
+              );
+            }}
+            onNavigate={(tab) => navigate(tab)}
+          />
+        )}
         <Toast toasts={toasts} onDismiss={removeToast} />
       </div>
     );
@@ -157,30 +208,41 @@ export default function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenUpload={() => setIsUploadOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
-        onNavigate={(tab) => setCurrentTab(tab)}
+        onNavigate={(tab) => navigate(tab)}
         unreadCount={pendingApprovalsCount}
       />
 
       {/* Vertical Sidebar on the right - Fixed at right-0 top-16 bottom-0 w-16 (64px) */}
       <Sidebar
         currentTab={currentTab}
-        onNavigate={(tab) => setCurrentTab(tab)}
+        onNavigate={(tab) => navigate(tab)}
         pendingApprovalsCount={pendingApprovalsCount}
+        homeTab={userRole === 'construction' ? 'constructionDashboard' : 'dashboard'}
       />
 
       {/* Main Body - Padded with pt-16 (64px) for Header and pr-16 (64px) for Sidebar */}
       <div className="flex-1 pt-16 pr-16 min-h-screen bg-[#E3E8EF] flex flex-col">
         {/* Main Content Area with generous bottom clearance (pb-28) and minimal dissolve page transition */}
-        <main key={currentTab} className="flex-1 w-full pb-28 bg-[#E3E8EF] animate-dissolve">
+        <main key={currentTab} className={`flex-1 w-full pb-28 bg-[#E3E8EF] ${isPageDissolving ? 'animate-dissolve-out' : 'animate-dissolve'}`}>
           {currentTab === 'dashboard' && (
             <DashboardView
               currentProject={currentProject}
-              onNavigate={(tab) => setCurrentTab(tab)}
+              onNavigate={(tab) => navigate(tab)}
               onOpenUpload={() => setIsUploadOpen(true)}
               onOpenDocumentDossier={handleOpenDocumentDossier}
               onTriggerToast={addToast}
               onOpenExcelIpc={handleOpenExcelIpc}
               onOpenClashFilters={handleOpenClashFilters}
+              onNavigateToCdeFolder={handleNavigateToCdeFolder}
+            />
+          )}
+
+          {currentTab === 'constructionDashboard' && (
+            <ConstructionDashboardView
+              currentProject={currentProject}
+              onNavigate={(tab) => navigate(tab)}
+              onTriggerToast={addToast}
+              onNavigateToCdeFolder={handleNavigateToCdeFolder}
             />
           )}
 
@@ -191,6 +253,7 @@ export default function App() {
               onOpenUpload={() => setIsUploadOpen(true)}
               onTriggerToast={addToast}
               onOpenExcelIpc={handleOpenExcelIpc}
+              initialFolderId={cdeTargetFolder}
             />
           )}
 
@@ -220,7 +283,8 @@ export default function App() {
                 setCurrentProject(proj);
                 addToast('تغییر پروژه فعال', `پروژه «${proj.name}» به عنوان پروژه فعال انتخاب شد.`, 'info');
               }}
-              onNavigate={(tab) => setCurrentTab(tab)}
+              homeTab={userRole === 'construction' ? 'constructionDashboard' : 'dashboard'}
+              onNavigate={(tab) => navigate(tab)}
               onTriggerToast={addToast}
               onOpenExcelIpc={handleOpenExcelIpc}
               onOpenDocumentDossier={handleOpenDocumentDossier}
@@ -247,7 +311,7 @@ export default function App() {
           </div>
 
           <button
-            onClick={() => setCurrentTab('dashboard')}
+            onClick={() => navigate('dashboard')}
             className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium ${
               currentTab === 'dashboard'
                 ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
@@ -255,11 +319,23 @@ export default function App() {
             }`}
             title="صفحه اصلی و داشبورد اجرایی"
           >
-            ۱. داشبورد اصلی
+            ۱. داشبورد مدیر طراحی
           </button>
 
           <button
-            onClick={() => setCurrentTab('cde')}
+            onClick={() => navigate('constructionDashboard')}
+            className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium ${
+              currentTab === 'constructionDashboard'
+                ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+            title="پیشخوان مدیر ساخت و هماهنگی کارگاه"
+          >
+            ۲. داشبورد مدیر ساخت
+          </button>
+
+          <button
+            onClick={() => navigate('cde')}
             className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium ${
               currentTab === 'cde'
                 ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
@@ -267,11 +343,11 @@ export default function App() {
             }`}
             title="مخزن فایل‌های CDE و ساختار ISO 19650"
           >
-            ۲. مخزن CDE
+            ۳. مخزن CDE
           </button>
 
           <button
-            onClick={() => setCurrentTab('bim')}
+            onClick={() => navigate('bim')}
             className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium ${
               currentTab === 'bim'
                 ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
@@ -279,11 +355,11 @@ export default function App() {
             }`}
             title="هماهنگی BIM و کلش‌گیری سه‌بعدی"
           >
-            ۳. تداخلات BIM
+            ۴. تداخلات BIM
           </button>
 
           <button
-            onClick={() => setCurrentTab('approvals')}
+            onClick={() => navigate('approvals')}
             className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium relative ${
               currentTab === 'approvals'
                 ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
@@ -291,7 +367,7 @@ export default function App() {
             }`}
             title="کارتابل تاییدات و گردش کار ISO"
           >
-            ۴. تایید مدارک
+            ۵. تایید مدارک
             {pendingApprovalsCount > 0 && (
               <span className="inline-block mr-1 px-1 py-0.2 bg-rose-500 text-white text-[10px] rounded-full">
                 {pendingApprovalsCount}
@@ -300,7 +376,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentTab('permissions')}
+            onClick={() => navigate('permissions')}
             className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium ${
               currentTab === 'permissions'
                 ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
@@ -308,11 +384,11 @@ export default function App() {
             }`}
             title="حاکمیت پوشه‌ها و دسترسی نقش‌ها"
           >
-            ۵. ماتریس دسترسی
+            ۶. ماتریس دسترسی
           </button>
 
           <button
-            onClick={() => setCurrentTab('portfolio')}
+            onClick={() => navigate('portfolio')}
             className={`px-2.5 py-1 text-xs rounded-lg transition-all font-medium ${
               currentTab === 'portfolio'
                 ? 'bg-[#00f2fe] text-[#0a111a] font-bold shadow-sm'
@@ -320,15 +396,15 @@ export default function App() {
             }`}
             title="پرتال جامع چندپروژه‌ای باران"
           >
-            ۶. پورتفوی پروژه‌ها
+            ۷. پورتفوی پروژه‌ها
           </button>
 
           <button
-            onClick={() => setCurrentTab('login')}
+            onClick={() => navigate('login')}
             className="px-2 py-1 text-xs rounded-lg text-slate-400 hover:text-amber-400 hover:bg-amber-400/10 transition-all font-medium"
             title="مشاهده صفحه ورود پرسنلی"
           >
-            ۷. صفحه ورود
+            ۸. صفحه ورود
           </button>
 
           <div className="w-[1px] h-4 bg-white/10 mx-0.5"></div>
@@ -423,14 +499,14 @@ export default function App() {
       <GlobalSearchModal
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
-        onNavigate={(tab) => setCurrentTab(tab)}
+        onNavigate={(tab) => navigate(tab)}
         onOpenDocumentDossier={handleOpenDocumentDossier}
       />
 
       <NotificationDrawer
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
-        onNavigate={(tab) => setCurrentTab(tab)}
+        onNavigate={(tab) => navigate(tab)}
         onOpenDocumentDossier={handleOpenDocumentDossier}
       />
 
@@ -449,7 +525,7 @@ export default function App() {
         }}
         onOpen3dViewer={() => {
           setSelectedDossierDocId(null);
-          setCurrentTab('bim');
+          navigate('bim');
           addToast('انتقال به نمایشگر ۳بعدی', 'مدل BIM هماهنگ باز شد.', 'info');
         }}
       />

@@ -8,6 +8,8 @@ interface CdeFilesViewProps {
   onOpenUpload: () => void;
   onTriggerToast: (title: string, desc: string, type?: 'success' | 'error' | 'info') => void;
   onOpenExcelIpc?: (doc?: CdeDocument) => void;
+  /** Folder pre-selected when the view mounts (e.g. deep-linked from dashboard cards) */
+  initialFolderId?: string;
 }
 
 export const CdeFilesView: React.FC<CdeFilesViewProps> = ({
@@ -15,10 +17,11 @@ export const CdeFilesView: React.FC<CdeFilesViewProps> = ({
   onOpenDocumentDossier,
   onOpenUpload,
   onTriggerToast,
-  onOpenExcelIpc
+  onOpenExcelIpc,
+  initialFolderId
 }) => {
   // Currently active folder ID in the tree (Default: XON-0000-XXX-PHASE 1 as requested)
-  const [selectedFolderId, setSelectedFolderId] = useState<string>('f-ph1');
+  const [selectedFolderId, setSelectedFolderId] = useState<string>(initialFolderId || 'f-ph1');
   const [folderSearch, setFolderSearch] = useState('');
   const [formatFilter, setFormatFilter] = useState<string>('all');
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
@@ -31,6 +34,18 @@ export const CdeFilesView: React.FC<CdeFilesViewProps> = ({
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
   };
+
+  // Auto-expand ancestors of the pre-selected folder so it is visible in the tree
+  React.useEffect(() => {
+    const info = findFolderInfo(CDE_FOLDERS, selectedFolderId);
+    if (info && info.ancestors.length > 0) {
+      setExpandedFolders((prev) => {
+        const next = { ...prev };
+        info.ancestors.forEach((a) => { next[a.id] = true; });
+        return next;
+      });
+    }
+  }, [selectedFolderId]);
 
   // Helper: Find folder and its ancestors recursively
   const findFolderInfo = (

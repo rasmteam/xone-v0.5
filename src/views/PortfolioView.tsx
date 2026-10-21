@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Project, NavigationTab } from '../types';
 import { PROJECTS } from '../data/mockData';
+import { useDissolve } from '../hooks/useDissolve';
 
 interface PortfolioViewProps {
   currentProject: Project;
@@ -9,6 +10,8 @@ interface PortfolioViewProps {
   onTriggerToast: (title: string, description: string, type?: 'success' | 'error' | 'info') => void;
   onOpenExcelIpc?: () => void;
   onOpenDocumentDossier?: (docId: string) => void;
+  /** Home/landing tab of the active organizational role (dashboard vs construction dashboard) */
+  homeTab?: NavigationTab;
 }
 
 export const PortfolioView: React.FC<PortfolioViewProps> = ({
@@ -17,7 +20,8 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
   onNavigate,
   onTriggerToast,
   onOpenExcelIpc,
-  onOpenDocumentDossier
+  onOpenDocumentDossier,
+  homeTab = 'dashboard'
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'onTrack' | 'issues' | 'finalizing'>('all');
@@ -30,6 +34,10 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [comparedProjectIds, setComparedProjectIds] = useState<string[]>(['baran-kish', 'baran-4', 'baran-3']);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+
+  const dossierDissolve = useDissolve(!!selectedDossierProject);
+  const compareDissolve = useDissolve(isCompareModalOpen);
+  const newProjectDissolve = useDissolve(isNewProjectModalOpen);
 
   // New Project Form State
   const [newProjectForm, setNewProjectForm] = useState({
@@ -80,16 +88,7 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
     });
   }, [searchQuery, statusFilter, usageFilter, sortBy]);
 
-  // Aggregate Portfolio Stats
-  const portfolioStats = useMemo(() => {
-    const totalProjects = PROJECTS.length;
-    const avgProgress = (PROJECTS.reduce((acc, p) => acc + p.progress, 0) / totalProjects).toFixed(1);
-    const criticalCount = PROJECTS.filter((p) => p.status === 'critical' || p.status === 'atRisk').length;
-    const totalClashes = PROJECTS.reduce((acc, p) => acc + (p.clashesCount || 0), 0);
-    return { totalProjects, avgProgress, criticalCount, totalClashes };
-  }, []);
-
-  const handleSelectAndGo = (proj: Project, destinationTab: NavigationTab = 'dashboard') => {
+  const handleSelectAndGo = (proj: Project, destinationTab: NavigationTab = homeTab) => {
     onSelectProject(proj);
     onNavigate(destinationTab);
     onTriggerToast(
@@ -166,157 +165,6 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* 2. Top Executive Portfolio KPIs (4 High-Contrast Metric Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Projects */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block mb-1">پروژه‌های شاخص باران</span>
-            <div className="text-3xl sm:text-4xl font-black font-markazi text-slate-900">
-              {portfolioStats.totalProjects} پروژه
-            </div>
-            <span className="text-xs text-slate-500 mt-1 block">
-              از باران ۱ تا پروژه پرچم‌دار باران کیش
-            </span>
-          </div>
-          <div className="w-13 h-13 rounded-2xl bg-[#00716B]/10 text-[#00716B] flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl">domain</span>
-          </div>
-        </div>
-
-        {/* Metric 2: Total Area */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block mb-1">مجموع زیربنای تحت راهبری</span>
-            <div className="text-3xl sm:text-4xl font-black font-markazi text-slate-900">
-              ۴۰۸,۰۰۰
-            </div>
-            <span className="text-xs text-slate-500 mt-1 block">
-              مترمربع ساخت و توسعه در کشور
-            </span>
-          </div>
-          <div className="w-13 h-13 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl">square_foot</span>
-          </div>
-        </div>
-
-        {/* Metric 3: Portfolio Average Physical Progress */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block mb-1">میانگین وزنی پیشرفت کلان</span>
-            <div className="text-3xl sm:text-4xl font-black font-markazi text-[#00716B]">
-              {portfolioStats.avgProgress}٪
-            </div>
-            <span className="text-xs text-emerald-600 font-bold mt-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-base">verified</span>
-              ۳ پروژه تحویل قطعی + ۵ در حال ساخت
-            </span>
-          </div>
-          <div className="w-13 h-13 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl">monitoring</span>
-          </div>
-        </div>
-
-        {/* Metric 4: Clashes & Critical Actions */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow flex items-center justify-between">
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block mb-1">موارد نیازمند تصمیم در CDE</span>
-            <div className="text-3xl sm:text-4xl font-black font-markazi text-teal-700">
-              {portfolioStats.criticalCount}
-            </div>
-            <span className="text-xs text-slate-500 font-medium mt-1 block">
-              {portfolioStats.totalClashes} کلش مدل‌سازی در فرآیند هماهنگی
-            </span>
-          </div>
-          <div className="w-13 h-13 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center">
-            <span className="material-symbols-outlined text-3xl">assignment_late</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Interactive Latest Updates & CDE Events Strip */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="flex h-2.5 w-2.5 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00716B] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00716B]"></span>
-          </span>
-          <span className="text-xs font-bold text-slate-900 font-markazi text-sm">
-            آخرین رویدادها و اسناد بارگذاری‌شده در CDE سبد باران:
-          </span>
-        </div>
-
-        {/* Actionable Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto scrollbar-none">
-          {/* Pill 1: Baran Kish Master BIM */}
-          <button
-            onClick={() => {
-              const kish = PROJECTS.find((p) => p.id === 'baran-kish');
-              if (kish) {
-                handleSelectAndGo(kish, 'bim');
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 text-xs font-medium shrink-0 transition-colors cursor-pointer"
-            title="کلیک برای مشاهده مدل BIM و باغ‌های طبقاتی باران کیش"
-          >
-            <span className="material-symbols-outlined text-teal-700 text-base">deck</span>
-            <span>باران کیش: مدلسازی باغ‌های طبقاتی میانی (BIM)</span>
-            <span className="material-symbols-outlined text-xs">arrow_back</span>
-          </button>
-
-          {/* Pill 2: Baran 4 Core Slab */}
-          <button
-            onClick={() => {
-              const b4 = PROJECTS.find((p) => p.id === 'baran-4');
-              if (b4) {
-                handleSelectAndGo(b4, 'cde');
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-medium shrink-0 transition-colors cursor-pointer"
-            title="مشاهده اسناد بتن‌ریزی هسته باران ۴"
-          >
-            <span className="material-symbols-outlined text-blue-700 text-base">architecture</span>
-            <span>باران ۴: نقشه هسته مرکزی طبقه ۱۴ (Rev-03.dwg)</span>
-            <span className="material-symbols-outlined text-xs">arrow_back</span>
-          </button>
-
-          {/* Pill 3: Financial IPC Excel Modal */}
-          <button
-            onClick={() => {
-              if (onOpenExcelIpc) {
-                onOpenExcelIpc();
-                onTriggerToast('مشاهده صورت‌وضعیت مالی', 'قالب اکسل صورت‌وضعیت مالی اسفندماه باز شد.', 'success');
-              } else {
-                onNavigate('approvals');
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-medium shrink-0 transition-colors cursor-pointer"
-            title="کلیک برای باز کردن مستقیم مودال اکسل صورت وضعیت"
-          >
-            <span className="material-symbols-outlined text-emerald-700 text-base">table_chart</span>
-            <span>صورت‌وضعیت مالی تاییدشده اسفندماه (اکسل CDE)</span>
-            <span className="material-symbols-outlined text-xs">arrow_back</span>
-          </button>
-
-          {/* Pill 4: Baran 3 As-Built Documents */}
-          <button
-            onClick={() => {
-              const b3 = PROJECTS.find((p) => p.id === 'baran-3');
-              if (b3) {
-                handleSelectAndGo(b3, 'cde');
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-medium shrink-0 transition-colors cursor-pointer"
-            title="آرشیو اسناد چون‌ساخت باران ۳"
-          >
-            <span className="material-symbols-outlined text-slate-600 text-base">folder_special</span>
-            <span>آرشیو کامل اسناد چون‌ساخت (As-Built) باران ۳</span>
-            <span className="material-symbols-outlined text-xs">arrow_back</span>
-          </button>
-        </div>
-      </div>
-
       {/* 4. Toolbar: Search, Filters, Sort, and View Switcher */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
         {/* Search Bar */}
@@ -626,7 +474,7 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
                   <div className="pt-2 border-t border-slate-100 space-y-2">
                     {/* Primary Button */}
                     <button
-                      onClick={() => handleSelectAndGo(proj, 'dashboard')}
+                      onClick={() => handleSelectAndGo(proj)}
                       className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         isCurrentActive
                           ? 'bg-[#00716B] text-white shadow-sm hover:bg-[#005a55]'
@@ -639,36 +487,6 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
                       <span>{isCurrentActive ? 'ورود به پیشخوان پروژه جاری' : 'انتخاب پروژه و ورود'}</span>
                       <span className="material-symbols-outlined text-sm">arrow_back</span>
                     </button>
-
-                    {/* Secondary Action Row: CDE, BIM, Dossier */}
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <button
-                        onClick={() => handleSelectAndGo(proj, 'cde')}
-                        className="py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                        title="محیط مشترک اسناد CDE"
-                      >
-                        <span className="material-symbols-outlined text-sm text-[#00716B]">folder</span>
-                        <span>اسناد CDE</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleSelectAndGo(proj, 'bim')}
-                        className="py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                        title="مدل سه‌بعدی و کلش‌ها"
-                      >
-                        <span className="material-symbols-outlined text-sm text-teal-600">view_in_ar</span>
-                        <span>مدل BIM</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSelectedDossierProject(proj)}
-                        className="py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                        title="شناسنامه و مشخصات تفصیلی کاتالوگ"
-                      >
-                        <span className="material-symbols-outlined text-sm text-amber-600">description</span>
-                        <span>شناسنامه</span>
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -801,7 +619,7 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
                       <td className="p-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            onClick={() => handleSelectAndGo(proj, 'dashboard')}
+                            onClick={() => handleSelectAndGo(proj)}
                             className="px-3 py-1.5 rounded-lg bg-[#00716B] hover:bg-[#005a55] text-white text-xs font-bold transition-colors cursor-pointer"
                             title="انتخاب و مشاهده پیشخوان"
                           >
@@ -889,13 +707,13 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
       </div>
 
       {/* MODAL 1: Project Technical Dossier Modal */}
-      {selectedDossierProject && (
+      {dossierDissolve.visible && selectedDossierProject && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-backdrop-dissolve"
+          className={`fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 ${dossierDissolve.closing ? 'animate-backdrop-dissolve-out' : 'animate-backdrop-dissolve'}`}
           onClick={() => setSelectedDossierProject(null)}
         >
           <div
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-slate-200 shadow-2xl flex flex-col animate-modal-dissolve"
+            className={`bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-slate-200 shadow-2xl flex flex-col ${dossierDissolve.closing ? 'animate-modal-dissolve-out' : 'animate-modal-dissolve'}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1058,7 +876,7 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
                 </button>
                 <button
                   onClick={() => {
-                    handleSelectAndGo(selectedDossierProject, 'dashboard');
+                    handleSelectAndGo(selectedDossierProject);
                     setSelectedDossierProject(null);
                   }}
                   className="px-5 py-2 rounded-xl bg-[#00716B] hover:bg-[#005a55] text-white text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -1073,13 +891,13 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
       )}
 
       {/* MODAL 2: Compare Projects Modal */}
-      {isCompareModalOpen && (
+      {compareDissolve.visible && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-backdrop-dissolve"
+          className={`fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 ${compareDissolve.closing ? 'animate-backdrop-dissolve-out' : 'animate-backdrop-dissolve'}`}
           onClick={() => setIsCompareModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden border border-slate-200 shadow-2xl flex flex-col animate-modal-dissolve"
+            className={`bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden border border-slate-200 shadow-2xl flex flex-col ${compareDissolve.closing ? 'animate-modal-dissolve-out' : 'animate-modal-dissolve'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -1175,7 +993,7 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
 
                       <button
                         onClick={() => {
-                          handleSelectAndGo(p, 'dashboard');
+                          handleSelectAndGo(p);
                           setIsCompareModalOpen(false);
                         }}
                         className="w-full py-2 rounded-xl bg-[#00716B] hover:bg-[#005a55] text-white text-xs font-bold transition-colors cursor-pointer"
@@ -1201,13 +1019,13 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
       )}
 
       {/* MODAL 3: New Project Registration Modal */}
-      {isNewProjectModalOpen && (
+      {newProjectDissolve.visible && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          className={`fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 ${newProjectDissolve.closing ? 'animate-backdrop-dissolve-out' : 'animate-backdrop-dissolve'}`}
           onClick={() => setIsNewProjectModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl flex flex-col overflow-hidden"
+            className={`bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl flex flex-col overflow-hidden ${newProjectDissolve.closing ? 'animate-modal-dissolve-out' : 'animate-modal-dissolve'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
