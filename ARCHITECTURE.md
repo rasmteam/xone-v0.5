@@ -7,7 +7,7 @@
 
 ## 1. What this project is
 
-Xone is a **single-page, front-end-only prototype** of a Construction Document Environment (CDE) platform for Baran Construction Group. It demonstrates how two distinct organizational personas interact with the same project data:
+Xone is a **single-page, front-end-only prototype** of a Common Data Environment (CDE) platform for Baran Construction Group. It demonstrates how two distinct organizational personas interact with the same project data:
 
 | Persona | Persian label | Landing page |
 |---|---|---|
@@ -197,11 +197,13 @@ Approximate size: ~8,000 lines of TSX across views, 1,805 lines of mock data.
 
 `mockData.ts` exports:
 
-- `PROJECTS` — 8 flagship Baran projects (images resolved via `import.meta.env.BASE_URL`)
+- `PROJECTS` — 8 flagship Baran projects (Kish, Baran 1–5, Unique One, Pure One; images resolved via `import.meta.env.BASE_URL`)
 - `CDE_FOLDERS` — ISO-19650 folder tree (`f-doc`, `f-import`, `f-ph1` with discipline branches, `f-ph1-financial`, `f-ph2`, plus `f-doc-mom` for meeting minutes)
-- `CDE_DOCUMENTS` — 26 documents across folders
+- `CDE_DOCUMENTS` — 26 controlled documents across folders
 - `DEFAULT_IPC_CERTIFICATE` — full IPC #5 payload
-- `APPROVAL_ITEMS`, `CLASHES`, `ROLE_PERMISSIONS`, `USER_OVERRIDES`, `MILESTONES`
+- `APPROVAL_ITEMS` — 5 workflow inbox items
+- `CLASHES` — 26 fully-populated clash records (Revit element IDs, penetration, coordinates, coordinator notes)
+- `ROLE_PERMISSIONS`, `USER_OVERRIDES`, `MILESTONES`
 
 > **Data is read-only except for uploads.** `documents` is React state seeded from `CDE_DOCUMENTS`; `UploadModal` prepends a generated `CdeDocument`. Everything else (approvals, clashes, permissions) is rendered directly from constants, so actions affecting them are simulated with toasts.
 
@@ -344,3 +346,170 @@ Today most write actions only toast. To persist within the session: hold the dat
 - **`Header` title for new tabs** falls back to a generic string unless a `getPageTitle` case is added.
 - **Template residue:** unused server/AI dependencies and `metadata.json` capability flag; Google-hosted images are external and require internet access.
 - **Accessibility:** interactive `<div onClick>` elements (cards) are not keyboard-focusable; icon-only buttons rely on `title` tooltips.
+
+---
+
+> **Sections 12–18 are the pitch-deck baseline.** They translate the technical facts above into narrative, messaging, and demo material that an AI deck generator (or a human designer) can turn directly into presentation slides. Sections 1–11 remain the source of truth for *what is actually implemented*.
+
+---
+
+## 12. Product story (narrative layer)
+
+### 12.1 Elevator pitch (short)
+
+> **Xone** is the unified digital workspace of Baran Construction Group: one ISO 19650-compliant Common Data Environment where every project document, BIM coordination issue, approval workflow, and payment certificate lives — tailored to each manager's role, from the design office to the construction site.
+
+### 12.2 Elevator pitch (long, for the "solution" slide)
+
+> Large construction portfolios lose weeks every month to scattered documents, ambiguous approval responsibilities, and BIM clashes discovered too late. Xone replaces e-mail threads, shared drives, and disconnected tools with a single platform: documents follow the ISO 19650 lifecycle (`WIP → Shared → Published`) with cryptographic traceability, design and construction managers each get a role-specific cockpit of KPIs, and coordination issues flow from the 3D model to the workshop. The prototype presented here runs entirely in the browser with realistic data from 8 live Baran projects.
+
+### 12.3 Problem statements (one slide bullet each)
+
+| # | Pain today | Xone's answer (implemented in prototype) |
+|---|---|---|
+| 1 | Documents scattered across e-mail, USB drives, and shared folders — "which revision is valid?" | Single CDE tree with ISO naming (`XON-1006-BRK-PH1-ARC-REVIT-MOD-R04.rvt`), revision history, SHA-256 hash, suitability codes (§6.6, §7 DocumentDossierModal) |
+| 2 | Approval responsibilities unclear; SLAs slip silently | Role-based approval cartable with SLA countdowns, overdue warnings, and escalation actions (§6.8, KPI card 1/5 on both dashboards) |
+| 3 | BIM clashes found on site, after they cost money | Discipline-pair risk matrix, clash register with severity/penetration data, and resolution trending (§6.7) |
+| 4 | Managers see either *design* dashboards or *site* spreadsheets — never their own view | Two persona-specific home screens driven by the same project data (§3.3, §6.3–6.4) |
+| 5 | Financial certificates (IPC) reconciled manually against progress | Interactive IPC spreadsheet with BIM-verified quantities per BOQ row (§7 ExcelIpcModal) |
+| 6 | Executives can't compare projects at a glance | Portfolio with progress/budget/risk comparison across the whole holding (§6.5) |
+
+### 12.4 Value pillars (slide-ready)
+
+1. **One source of truth** — ISO 19650 CDE with naming convention, revision control, and traceability.
+2. **Role-aware intelligence** — the same platform shows the Design Manager their approval queue and the Construction Manager their S-Curve.
+3. **Prevention over correction** — clash coordination moved *before* site execution (80% resolution rate in demo data).
+4. **Financial transparency** — IPC certificates linked to BIM-verified physical progress.
+5. **Portfolio oversight** — 8 projects, one screen, comparable KPIs.
+
+### 12.5 Differentiators worth claiming in the deck
+
+- Built around **two organizational personas**, not one generic dashboard (demonstrated by the role-selection gate).
+- Deep-linking between layers: a KPI card → the exact CDE folder; a clash histogram bar → the pre-filtered clash register; an approval row → the document dossier. This "every number is clickable" behaviour is the demo's signature moment.
+- Localized for Iranian construction practice: Persian RTL, Jalali dates, Toman amounts, local consultant workflows — while keeping ISO 19650 terminology.
+
+---
+
+## 13. Feature → benefit inventory (slide content source)
+
+| Feature (where it lives) | Benefit to quote |
+|---|---|
+| Role selection gate with 2 active personas + 2 "in development" (§6.2) | Shows product vision beyond current scope; roadmap is visible in the UI itself |
+| 5 KPI cards per dashboard (§6.3–6.4) | "Managers open one page and know what needs action today" |
+| S-Curve with baseline vs actual + deviation (§6.4) | "Early warning: −3.4% deviation surfaced automatically, not at month-end" |
+| Clash heatmap matrix + register + presets (§6.7) | "From a red cell to the list of responsible clashes in one click" |
+| Approval cartable with SLA timers & bulk actions (§6.8) | "Nothing waits longer than its SLA without an escalation" |
+| Document dossier (hash, revisions, diff, QR block) (§7) | "Full forensic traceability for every drawing and model" |
+| 2-step upload wizard with ISO naming matrix (§7) | "Compliance by construction — users can't name files wrongly" |
+| IPC Excel modal with BIM reconciliation (§7) | "Payments verified against the model, not against paperwork" |
+| Portfolio comparison (up to 3 projects) (§6.5) | "Board-level decisions on comparable data" |
+| Permissions matrix + per-user overrides (§6.9) | "Governance that auditors can read" |
+| Global search ⌘K, notifications, project switcher (§7) | "Enterprise-grade everyday ergonomics" |
+| Full-width folder deep-links on support cards (§6.3–6.4) | "From any summary widget into the authoritative folder" |
+
+---
+
+## 14. Numbers to quote (demo-data figures — label them as such on slides)
+
+All figures below are **fictional demo values** baked into `mockData.ts`; on slides, caption them "نمونه داده‌های پروژه باران" (sample Baran project data).
+
+| Metric | Value | Source |
+|---|---|---|
+| Projects in portfolio | 8 | `PROJECTS` |
+| Total built area across portfolio | 408,000 m² (stated on portfolio header, pre-removal of KPI cards — safe to reuse as a factoid) | design source |
+| Controlled documents in CDE | 26 sample documents, "45 documents in the workflow" (UI copy) | `CDE_DOCUMENTS` / UI |
+| Clash records modelled | 26 detailed records; UI aggregate: 60 total, 48 resolved (**80% resolution rate**), 12 open, 3 critical | `CLASHES` / UI |
+| Design-manager KPIs | 78.5% physical progress (+1.2% w/w), 64% financial (4.3 of 6.8 Toman-trillion), 3 approvals < 24h SLA, 2 SLA-overdue docs | `DashboardView` |
+| Construction-manager KPIs | 62.40% physical (baseline 65.8%, −3.4% deviation), 58.5% financial (3.4 of 5.8), 4 change orders (>1.25B Toman impact), week 44 of 68 | `ConstructionDashboardView` |
+| IPC settlement shown | 3.4B Toman total paid; IPC #5 890M Toman in review | `ConstructionDashboardView` / IPC modal |
+| Milestones | 3 of 8 done (design view), 3 of 7 done (construction view) | dashboards |
+| Clash-resolution trend | 45 → 32 → 21 → 12 open over 4 weeks (−73%) | clash card |
+
+---
+
+## 15. Guided demo script (click path + narration)
+
+A presenter can follow this exact path; each step maps to implemented behaviour.
+
+1. **Login** — pick password or OTP; narrate "enterprise authentication, smart-card ready." *(LoginView)*
+2. **Role gate** — "One platform, two worlds." Point out the two locked future modules as roadmap. Click **مدیر ارشد طراحی و CDE**. *(RoleSelectionView)*
+3. **Portfolio** — "The whole holding at a glance." Use search or status chips, open the comparison modal briefly, then select **باران ۵ / برج آلفا**. *(PortfolioView)*
+4. **Design Manager home** — sweep top-to-bottom: KPI row → approval worktable → click «بررسی» on the Revit row to open the **document dossier** (show hash + revision diff, then "open in 3D") → back to clash chart, click a histogram bar → **pre-filtered clash register** opens (the preset badge proves it). *(DashboardView → BIM)*
+5. **CDE** — show the folder tree, the ISO naming, and the upload wizard's naming matrix (2 steps, never finishing the upload is fine). *(CdeFilesView / UploadModal)*
+6. **Approvals cartable** — tabs, SLA badges, bulk selection. *(ApprovalsView)*
+7. **⌘K global search** — type "چیلر" or "IPC" to show cross-repository search. *(GlobalSearchModal)*
+8. **Switch persona** — via demo bar or role flow: pick **مدیر ساخت و کارگاه**, select a project → the **Construction home** loads. Walk the S-Curve (baseline vs actual, week-44 marker), the clash reduction histogram, milestones, and click one of the bottom-card buttons to deep-link into the exact CDE folder (`f-ph1-financial` or `f-doc-mom`). *(ConstructionDashboardView)*
+9. **Close** on the IPC Excel modal or the permissions matrix, depending on the audience (finance vs. IT/governance).
+
+Timing guide: full loop ≈ 12–15 minutes; the help modal inside the role screen (§6.2) already encodes the two official scenarios (design/BIM focus vs. site/finance focus) — use it as the in-app cheat sheet.
+
+---
+
+## 16. Roadmap signals (safe to present)
+
+Visible in-product:
+
+- Two locked role cards: **Commercial & Assets** (sales stack, buyer receivables) and **Hospitality & FM** (operations, preventive maintenance) — labelled "در دست توسعه".
+- Multi-project governance already implied by the portfolio and permissions screens.
+
+Engineering roadmap implied by §11 (prototype scope → production):
+
+1. Real authentication + persistence (API layer; document state currently survives only in-session).
+2. URL routing & shareable deep links.
+3. Live BIM viewer (3D areas are currently branded image mocks).
+4. Workflow engine for approvals (state machine replacing mock `APPROVAL_ITEMS`).
+5. The two locked modules above.
+
+---
+
+## 17. Suggested deck outline (14 slides)
+
+| # | Slide | Content source |
+|---|---|---|
+| 1 | Title — "Xone · یکپارچه‌ساز مدیریت ساخت باران" + CoP V 0.5 badge | §12.1, §8 palette |
+| 2 | The problem — 6 pains of document/coordination chaos | §12.3 (pick 3–4) |
+| 3 | The solution — one CDE, ISO 19650 lifecycle diagram (WIP→Shared→Published) | §12.2, §5 |
+| 4 | Two personas, one platform — role-gate screenshot + persona cards | §6.2, §12.4-2 |
+| 5 | Design Manager cockpit — KPI row + approval worktable screenshot | §6.3, §14 |
+| 6 | Traceability — document dossier (hash, revisions, diff) screenshot | §7 |
+| 7 | BIM coordination — heatmap matrix + clash register + −73% trend | §6.7, §14 |
+| 8 | Construction Manager cockpit — S-Curve + milestones screenshot | §6.4, §14 |
+| 9 | Financial control — IPC spreadsheet with BIM reconciliation | §7, §14 |
+| 10 | Portfolio governance — comparison + permissions matrix | §6.5, §6.9 |
+| 11 | Live demo interlude — "now let's click it" + demo script steps 4–8 | §15 |
+| 12 | Architecture slide — thin-client React SPA, role-aware routing, extension-ready | §3, §10 |
+| 13 | Roadmap — locked modules + production hardening plan | §16 |
+| 14 | Close — value pillars recap + call to action | §12.4 |
+
+Speaker-notes hint for AI generators: keep each slide to one claim + one screenshot + one number from §14; put everything else in appendix.
+
+---
+
+## 18. Visual asset inventory (for deck design)
+
+**Screens to capture (1280×800, RTL):** login, role gate, portfolio grid, design dashboard (top & bottom halves), document dossier (details tab + diff tab), CDE folder tree + document table, upload wizard step 1 & 2, clash heatmap, clash register (pre-filtered), approvals cartable, construction dashboard (S-Curve section), IPC Excel modal (BOQ sheet), permissions matrix.
+
+**Brand tokens:** primary `#005652`, container/action `#00716B`, secondary `#296862`, terracotta accent `#965335`, error `#BA1A1A`, light surface `#f7f9fb`, page `#E3E8EF`; fonts **Markazi Text** (headings/numerals) and **Vazirmatn** (body); Material Symbols icon set. Live site for reference: `https://rasmteam.github.io/xone-v0.5/`.
+
+**Logos:** Baran Group logo and badge are currently hot-linked from Google's `aida` image CDN (URLs in `RoleSelectionView`, `Header`, `LoginView`) — re-host locally before print use.
+
+---
+
+## 19. Glossary (for deck writers unfamiliar with the domain)
+
+| Term | Meaning |
+|---|---|
+| **CDE** | Common Data Environment — the single repository where project information is created, shared, and archived (ISO 19650) |
+| **WIP / Shared / Published** | CDE lifecycle states: work-in-progress (author's sandbox) → shared (discipline coordination) → published (authoritative for wider team) |
+| **ISO 19650** | International standard for information management over the asset lifecycle; drives Xone's naming, states, and governance UI |
+| **Suitability code** | Marker of what a revision may be used for (e.g. S1 preliminary, S4 for construction) |
+| **BIM / LOD 350** | Building Information Modelling; Level of Development 350 = elements modelled with connections and coordination-grade detail |
+| **Clash / Clash matrix** | Detected interference between disciplines (e.g. duct vs beam); matrix = floors × discipline-pairs risk grid |
+| **IPC** | Interim Payment Certificate — periodic payment application verified against physical progress |
+| **BOQ** | Bill of Quantities — priced item list an IPC is measured against |
+| **MoM** | Minutes of Meeting — technical/site coordination records (folder `f-doc-mom`) |
+| **SLA** | Service Level Agreement — maximum allowed response time on approvals; overdue triggers escalation |
+| **S-Curve** | Cumulative progress vs time curve; baseline (contract) vs actual (site) comparison |
+| **WBS** | Work Breakdown Structure — phase/activity tree behind progress measurement |
+| **Change Order** | Contractual instruction modifying scope/cost (4 active, >1.25B Toman impact in demo data) |
+| **RACI** | Responsibility assignment matrix (Responsible/Accountable/Consulted/Informed) — appears as an XLSX sample in the CDE |
